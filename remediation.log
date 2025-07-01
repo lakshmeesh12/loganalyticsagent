@@ -1,0 +1,369 @@
+Error:
+Error in /snowflake/QUERY_HISTORY:
+QUERY_HISTORY LOG ENTRY
+QUERY_ID: 01bd5fe0-0000-236f-001f-820b0003d422
+QUERY_TEXT: <redacted>
+DATABASE_ID: 10
+DATABASE_NAME: LOG_EXPORT_DB
+SCHEMA_ID: None
+SCHEMA_NAME: None
+QUERY_TYPE: SELECT
+SESSION_ID: 8868708034437198
+USER_NAME: LAKSHMEESH
+ROLE_NAME: PUBLIC
+WAREHOUSE_ID: None
+WAREHOUSE_NAME: None
+WAREHOUSE_SIZE: None
+WAREHOUSE_TYPE: None
+CLUSTER_NUMBER: None
+QUERY_TAG: 
+EXECUTION_STATUS: FAIL
+ERROR_CODE: 002003
+ERROR_MESSAGE: SQL compilation error:
+Object 'LOG_EXPORT_DB' does not exist or not authorized.
+START_TIME: 2025-06-30 04:44:05.403000-07:00
+END_TIME: 2025-06-30 04:44:05.429000-07:00
+TOTAL_ELAPSED_TIME: 26
+BYTES_SCANNED: 0
+PERCENTAGE_SCANNED_FROM_CACHE: 0.0
+BYTES_WRITTEN: 0
+BYTES_WRITTEN_TO_RESULT: 0
+BYTES_READ_FROM_RESULT: 0
+ROWS_PRODUCED: None
+ROWS_INSERTED: 0
+ROWS_UPDATED: 0
+ROWS_DELETED: 0
+ROWS_UNLOADED: 0
+BYTES_DELETED: 0
+PARTITIONS_SCANNED: 0
+PARTITIONS_TOTAL: 0
+BYTES_SPILLED_TO_LOCAL_STORAGE: 0
+BYTES_SPILLED_TO_REMOTE_STORAGE: 0
+BYTES_SENT_OVER_THE_NETWORK: 0
+COMPILATION_TIME: 26
+EXECUTION_TIME: 0
+QUEUED_PROVISIONING_TIME: 0
+QUEUED_REPAIR_TIME: 0
+QUEUED_OVERLOAD_TIME: 0
+TRANSACTION_BLOCKED_TIME: 0
+OUTBOUND_DATA_TRANSFER_CLOUD: None
+OUTBOUND_DATA_TRANSFER_REGION: None
+OUTBOUND_DATA_TRANSFER_BYTES: 0
+INBOUND_DATA_TRANSFER_CLOUD: None
+INBOUND_DATA_TRANSFER_REGION: None
+INBOUND_DATA_TRANSFER_BYTES: 0
+LIST_EXTERNAL_FILES_TIME: 0
+CREDITS_USED_CLOUD_SERVICES: 4e-06
+RELEASE_VERSION: 9.17.2
+EXTERNAL_FUNCTION_TOTAL_INVOCATIONS: 0
+EXTERNAL_FUNCTION_TOTAL_SENT_ROWS: 0
+EXTERNAL_FUNCTION_TOTAL_RECEIVED_ROWS: 0
+EXTERNAL_FUNCTION_TOTAL_SENT_BYTES: 0
+EXTERNAL_FUNCTION_TOTAL_RECEIVED_BYTES: 0
+QUERY_LOAD_PERCENT: None
+IS_CLIENT_GENERATED_STATEMENT: False
+QUERY_ACCELERATION_BYTES_SCANNED: 0
+QUERY_ACCELERATION_PARTITIONS_SCANNED: 0
+QUERY_ACCELERATION_UPPER_LIMIT_SCALE_FACTOR: 0
+TRANSACTION_ID: 0
+CHILD_QUERIES_WAIT_TIME: 0
+ROLE_TYPE: ROLE
+QUERY_HASH: 3df1582e4e14f0f37e5b897fba2f917c
+QUERY_HASH_VERSION: 2
+QUERY_PARAMETERIZED_HASH: 3df1582e4e14f0f37e5b897fba2f917c
+QUERY_PARAMETERIZED_HASH_VERSION: 1
+SECONDARY_ROLE_STATS: None
+ROWS_WRITTEN_TO_RESULT: 0
+QUERY_RETRY_TIME: None
+QUERY_RETRY_CAUSE: None
+FAULT_HANDLING_TIME: None
+USER_TYPE: None
+USER_DATABASE_NAME: None
+USER_DATABASE_ID: None
+USER_SCHEMA_NAME: None
+USER_SCHEMA_ID: None
+Remediation:
+The error log entry indicates that a SQL query attempted to execute against a database object named `LOG_EXPORT_DB`. However, the execution failed with the error code `002003`, which corresponds to a "SQL compilation error" because the object does not exist or the user is not authorized to access it.
+
+Here are the key points of the error analysis:
+
+1. **Cause**:
+   - The database `LOG_EXPORT_DB` is either not present in the Snowflake environment or the user `LAKSHMEESH` does not have the necessary permissions to access it.
+
+2. **Remediation Steps**:
+   - **Verify Database Existence**:
+     - Check if the database `LOG_EXPORT_DB` actually exists in the Snowflake account. You can do this by executing:
+       ```sql
+       SHOW DATABASES;
+       ```
+     - If the database does not exist, you will need to either create it or contact the relevant team to understand why it is missing.
+
+   - **Check User Permissions**:
+     - If the database exists, ensure that the user `LAKSHMEESH` has sufficient privileges to access `LOG_EXPORT_DB`. You can check the user's roles and their associated privileges:
+       ```sql
+       SHOW GRANTS ON DATABASE LOG_EXPORT_DB;
+       ```
+     - If the user lacks access, you need to grant them the appropriate role or privileges. For example, to grant read access, you would typically run:
+       ```sql
+       GRANT USAGE ON DATABASE LOG_EXPORT_DB TO ROLE <user_role>;
+       GRANT SELECT ON ALL TABLES IN SCHEMA LOG_EXPORT_DB.<schema_name> TO ROLE <user_role>;
+       ```
+
+   - **Check Role Usage**:
+     - Ensure that the user `LAKSHMEESH` is using the correct role when executing the query. The query log indicates the use of the `PUBLIC` role. Verify that the `PUBLIC` role (or another role assigned to `LAKSHMEESH`) has the necessary privileges.
+
+   - **Warehouse Considerations**:
+     - Note that the log shows no warehouse was specified (`WAREHOUSE_NAME: None`). Ensure that a valid virtual warehouse is assigned and active for executing the query.
+
+3. **Contact Support**:
+   - If the above steps do not resolve the issue, you may need to contact Snowflake support for further assistance. Provide them with the error log details for more in-depth troubleshooting.
+
+By following these remediation steps, you should
+============================================================
+Error:
+Error in /snowflake/QUERY_HISTORY:
+QUERY_HISTORY LOG ENTRY
+QUERY_ID: 01bd5fe4-0000-236f-001f-820b0003d452
+QUERY_TEXT: SELECT *
+FROM SNOWFLAKE.INFORMATION_SCHEMA.QUERY_HISTORY
+WHERE USER_NAME = 'lakshmeesh'
+  AND START_TIME > DATEADD(MINUTE, -10, CURRENT_TIMESTAMP());
+DATABASE_ID: 10
+DATABASE_NAME: LOG_EXPORT_DB
+SCHEMA_ID: 24
+SCHEMA_NAME: LOG_SCHEMA
+QUERY_TYPE: SELECT
+SESSION_ID: 8868708034412586
+USER_NAME: KEERTHANA
+ROLE_NAME: ACCOUNTADMIN
+WAREHOUSE_ID: 7
+WAREHOUSE_NAME: COMPUTE_WH
+WAREHOUSE_SIZE: None
+WAREHOUSE_TYPE: STANDARD
+CLUSTER_NUMBER: None
+QUERY_TAG: 
+EXECUTION_STATUS: FAIL
+ERROR_CODE: 002003
+ERROR_MESSAGE: SQL compilation error:
+Object 'SNOWFLAKE.INFORMATION_SCHEMA.QUERY_HISTORY' does not exist or not authorized.
+START_TIME: 2025-06-30 04:48:27.704000-07:00
+END_TIME: 2025-06-30 04:48:27.743000-07:00
+TOTAL_ELAPSED_TIME: 39
+BYTES_SCANNED: 0
+PERCENTAGE_SCANNED_FROM_CACHE: 0.0
+BYTES_WRITTEN: 0
+BYTES_WRITTEN_TO_RESULT: 0
+BYTES_READ_FROM_RESULT: 0
+ROWS_PRODUCED: None
+ROWS_INSERTED: 0
+ROWS_UPDATED: 0
+ROWS_DELETED: 0
+ROWS_UNLOADED: 0
+BYTES_DELETED: 0
+PARTITIONS_SCANNED: 0
+PARTITIONS_TOTAL: 0
+BYTES_SPILLED_TO_LOCAL_STORAGE: 0
+BYTES_SPILLED_TO_REMOTE_STORAGE: 0
+BYTES_SENT_OVER_THE_NETWORK: 0
+COMPILATION_TIME: 39
+EXECUTION_TIME: 0
+QUEUED_PROVISIONING_TIME: 0
+QUEUED_REPAIR_TIME: 0
+QUEUED_OVERLOAD_TIME: 0
+TRANSACTION_BLOCKED_TIME: 0
+OUTBOUND_DATA_TRANSFER_CLOUD: None
+OUTBOUND_DATA_TRANSFER_REGION: None
+OUTBOUND_DATA_TRANSFER_BYTES: 0
+INBOUND_DATA_TRANSFER_CLOUD: None
+INBOUND_DATA_TRANSFER_REGION: None
+INBOUND_DATA_TRANSFER_BYTES: 0
+LIST_EXTERNAL_FILES_TIME: 0
+CREDITS_USED_CLOUD_SERVICES: 6e-06
+RELEASE_VERSION: 9.17.2
+EXTERNAL_FUNCTION_TOTAL_INVOCATIONS: 0
+EXTERNAL_FUNCTION_TOTAL_SENT_ROWS: 0
+EXTERNAL_FUNCTION_TOTAL_RECEIVED_ROWS: 0
+EXTERNAL_FUNCTION_TOTAL_SENT_BYTES: 0
+EXTERNAL_FUNCTION_TOTAL_RECEIVED_BYTES: 0
+QUERY_LOAD_PERCENT: None
+IS_CLIENT_GENERATED_STATEMENT: False
+QUERY_ACCELERATION_BYTES_SCANNED: 0
+QUERY_ACCELERATION_PARTITIONS_SCANNED: 0
+QUERY_ACCELERATION_UPPER_LIMIT_SCALE_FACTOR: 0
+TRANSACTION_ID: 0
+CHILD_QUERIES_WAIT_TIME: 0
+ROLE_TYPE: ROLE
+QUERY_HASH: c8049b359f16992fe81831e6cc401b44
+QUERY_HASH_VERSION: 2
+QUERY_PARAMETERIZED_HASH: aadec15d0739b8251991f79c20f927df
+QUERY_PARAMETERIZED_HASH_VERSION: 1
+SECONDARY_ROLE_STATS: None
+ROWS_WRITTEN_TO_RESULT: 0
+QUERY_RETRY_TIME: None
+QUERY_RETRY_CAUSE: None
+FAULT_HANDLING_TIME: None
+USER_TYPE: None
+USER_DATABASE_NAME: None
+USER_DATABASE_ID: None
+USER_SCHEMA_NAME: None
+USER_SCHEMA_ID: None
+Remediation:
+The error log indicates that the query is attempting to access the `SNOWFLAKE.INFORMATION_SCHEMA.QUERY_HISTORY` table but fails with a SQL compilation error: "Object 'SNOWFLAKE.INFORMATION_SCHEMA.QUERY_HISTORY' does not exist or not authorized". Let's break down potential causes and provide actionable steps:
+
+### Root Cause Analysis:
+1. **Incorrect Resource Name:** The table or view `QUERY_HISTORY` either does not exist in the specified location or is not correctly referred to. 
+2. **Insufficient Privileges:** The user executing the query, `KEERTHANA`, may not have the necessary permissions to access the `QUERY_HISTORY` table or view.
+3. **Role Authorization:** The role `ACCOUNTADMIN` used might not have data warehouse-level permissions (like access to information schema tables/views) due to limited grants or specific restrictions.
+
+### Actionable Remediation Steps:
+1. **Verify Object Existence:**
+   - Ensure that the `QUERY_HISTORY` table or view exists within the designated context. It's possible that either the schema or database context is misconfigured.
+
+2. **Check Permissions:**
+   - Use the following SQL commands to verify if the `KEERTHANA` user with `ACCOUNTADMIN` role has the necessary privileges.
+     ```sql
+     SHOW GRANTS ON SCHEMA SNOWFLAKE.INFORMATION_SCHEMA;
+     ```
+   - Confirm that the necessary grants (like `USAGE`, `SELECT`) are present on the `QUERY_HISTORY`.
+
+3. **Grant Necessary Privileges:**
+   - If permissions are lacking, grant the necessary privileges to the user or role. As `ACCOUNTADMIN`, the role should already have high-level access but might need explicit grants.
+     ```sql
+     GRANT USAGE ON SCHEMA SNOWFLAKE.INFORMATION_SCHEMA TO ROLE ACCOUNTADMIN;
+     GRANT SELECT ON ALL TABLES IN SCHEMA SNOWFLAKE.INFORMATION_SCHEMA TO ROLE ACCOUNTADMIN;
+     ```
+
+4. **Consider Role Privileges:**
+   - If any role hierarchy restrictions or custom role configurations exist, ensure the role `ACCOUNTADMIN` is granted access to the appropriate schemas and databases.
+
+5. **Session-Level Context:**
+   - Confirm that the query's session is set to properly resolve contexts and roles. This can be done using session variables or running `USE SCHEMA` commands if necessary.
+
+6. **Contact Support:** 
+   - If the above steps do not resolve the issue, consider contacting Snowflake support as a
+============================================================
+Error:
+Error in /snowflake/QUERY_HISTORY:
+QUERY_HISTORY LOG ENTRY
+QUERY_ID: 01bd5ff1-0000-2357-001f-820b000344fa
+QUERY_TEXT: <redacted>
+DATABASE_ID: 10
+DATABASE_NAME: LOG_EXPORT_DB
+SCHEMA_ID: 24
+SCHEMA_NAME: LOG_SCHEMA
+QUERY_TYPE: SELECT
+SESSION_ID: 8868708034437198
+USER_NAME: LAKSHMEESH
+ROLE_NAME: PUBLIC
+WAREHOUSE_ID: 4
+WAREHOUSE_NAME: SNOWFLAKE_LEARNING_WH
+WAREHOUSE_SIZE: None
+WAREHOUSE_TYPE: STANDARD
+CLUSTER_NUMBER: None
+QUERY_TAG: 
+EXECUTION_STATUS: FAIL
+ERROR_CODE: 002003
+ERROR_MESSAGE: SQL compilation error:
+Schema 'LOG_EXPORT_DB.LOG_EXPORT_DB' does not exist or not authorized.
+START_TIME: 2025-06-30 05:01:43.231000-07:00
+END_TIME: 2025-06-30 05:01:43.354000-07:00
+TOTAL_ELAPSED_TIME: 123
+BYTES_SCANNED: 0
+PERCENTAGE_SCANNED_FROM_CACHE: 0.0
+BYTES_WRITTEN: 0
+BYTES_WRITTEN_TO_RESULT: 0
+BYTES_READ_FROM_RESULT: 0
+ROWS_PRODUCED: None
+ROWS_INSERTED: 0
+ROWS_UPDATED: 0
+ROWS_DELETED: 0
+ROWS_UNLOADED: 0
+BYTES_DELETED: 0
+PARTITIONS_SCANNED: 0
+PARTITIONS_TOTAL: 0
+BYTES_SPILLED_TO_LOCAL_STORAGE: 0
+BYTES_SPILLED_TO_REMOTE_STORAGE: 0
+BYTES_SENT_OVER_THE_NETWORK: 0
+COMPILATION_TIME: 123
+EXECUTION_TIME: 0
+QUEUED_PROVISIONING_TIME: 0
+QUEUED_REPAIR_TIME: 0
+QUEUED_OVERLOAD_TIME: 0
+TRANSACTION_BLOCKED_TIME: 0
+OUTBOUND_DATA_TRANSFER_CLOUD: None
+OUTBOUND_DATA_TRANSFER_REGION: None
+OUTBOUND_DATA_TRANSFER_BYTES: 0
+INBOUND_DATA_TRANSFER_CLOUD: None
+INBOUND_DATA_TRANSFER_REGION: None
+INBOUND_DATA_TRANSFER_BYTES: 0
+LIST_EXTERNAL_FILES_TIME: 0
+CREDITS_USED_CLOUD_SERVICES: 1.9e-05
+RELEASE_VERSION: 9.17.2
+EXTERNAL_FUNCTION_TOTAL_INVOCATIONS: 0
+EXTERNAL_FUNCTION_TOTAL_SENT_ROWS: 0
+EXTERNAL_FUNCTION_TOTAL_RECEIVED_ROWS: 0
+EXTERNAL_FUNCTION_TOTAL_SENT_BYTES: 0
+EXTERNAL_FUNCTION_TOTAL_RECEIVED_BYTES: 0
+QUERY_LOAD_PERCENT: None
+IS_CLIENT_GENERATED_STATEMENT: False
+QUERY_ACCELERATION_BYTES_SCANNED: 0
+QUERY_ACCELERATION_PARTITIONS_SCANNED: 0
+QUERY_ACCELERATION_UPPER_LIMIT_SCALE_FACTOR: 0
+TRANSACTION_ID: 0
+CHILD_QUERIES_WAIT_TIME: 0
+ROLE_TYPE: ROLE
+QUERY_HASH: 66b472fa01735aae5270f048c2f2a7ad
+QUERY_HASH_VERSION: 2
+QUERY_PARAMETERIZED_HASH: 66b472fa01735aae5270f048c2f2a7ad
+QUERY_PARAMETERIZED_HASH_VERSION: 1
+SECONDARY_ROLE_STATS: None
+ROWS_WRITTEN_TO_RESULT: 0
+QUERY_RETRY_TIME: None
+QUERY_RETRY_CAUSE: None
+FAULT_HANDLING_TIME: None
+USER_TYPE: None
+USER_DATABASE_NAME: None
+USER_DATABASE_ID: None
+USER_SCHEMA_NAME: None
+USER_SCHEMA_ID: None
+Remediation:
+The error log indicates that a query failed due to a SQL compilation error with the error code `002003`. The specific error message is: 
+
+```
+Schema 'LOG_EXPORT_DB.LOG_EXPORT_DB' does not exist or not authorized.
+```
+
+### Root Cause:
+The root cause of the error is that the query is attempting to access or use a schema named `LOG_EXPORT_DB.LOG_EXPORT_DB`, which either does not exist or the user does not have the necessary authorization to access it. The schema name seems incorrect due to repetition, which might suggest an error in how it's referenced in the query.
+
+### Remediation Steps:
+1. **Verify the Schema Name:**
+   - Double-check the query to ensure that the schema is being referenced correctly. The schema reference should generally be `<DATABASE_NAME>.<SCHEMA_NAME>`. 
+   - Given that the schema name is shown as `LOG_EXPORT_DB.LOG_EXPORT_DB`, verify whether it should instead be `LOG_EXPORT_DB.LOG_SCHEMA` or simply `LOG_SCHEMA`.
+
+2. **Check for Schema Existence:**
+   - Log in to Snowflake using a tool like SnowSQL or a data warehousing client.
+   - Run the following SQL command to list schemas in the `LOG_EXPORT_DB` database to verify that the `LOG_SCHEMA` exists:
+     ```sql
+     SHOW SCHEMAS IN DATABASE LOG_EXPORT_DB;
+     ```
+
+3. **Verify User Permissions:**
+   - Ensure that the user `LAKSHMEESH` has the appropriate permissions to access the schema `LOG_SCHEMA`. You can check the grants with the following command:
+     ```sql
+     SHOW GRANTS ON SCHEMA LOG_EXPORT_DB.LOG_SCHEMA;
+     ```
+   - If necessary, grant the required USAGE permissions to the user or role:
+     ```sql
+     GRANT USAGE ON SCHEMA LOG_EXPORT_DB.LOG_SCHEMA TO ROLE PUBLIC;
+     ```
+
+4. **Update the Query:**
+   - If the schema name was incorrectly referenced, update the query accordingly.
+   - Ensure the query points to the correct `<DATABASE_NAME>.<SCHEMA_NAME>`.
+
+5. **Re-run the Query:**
+   - After verifying and potentially correcting the schema name and permissions, re-run the query to ensure it executes successfully.
+
+By following these steps, you should be able to resolve the error and successfully execute the query.
+============================================================

@@ -1,0 +1,88 @@
+---
+# 1. Busybox Logger Pod
+apiVersion: v1
+kind: Pod
+metadata:
+  name: busybox-logger
+spec:
+  containers:
+  - name: logger
+    image: busybox
+    command: ["/bin/sh", "-c"]
+    args:
+      - |
+        while true; do
+          echo "$(date) [INFO] Application running smoothly";
+          echo "$(date) [WARN] API latency high";
+          echo "$(date) [ERROR] Failed to connect to database";
+          sleep 5;
+        done
+
+---
+# 2. CrashLoopBackOff Pod
+apiVersion: v1
+kind: Pod
+metadata:
+  name: crash-pod
+spec:
+  containers:
+  - name: crashy
+    image: busybox
+    command: ["/bin/sh", "-c"]
+    args: ["echo 'Starting...'; sleep 2; exit 1"]
+  restartPolicy: Always
+
+---
+# 3. NGINX Web Server Deployment + Service
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: web
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: web
+  template:
+    metadata:
+      labels:
+        app: web
+    spec:
+      containers:
+      - name: nginx
+        image: nginx
+        ports:
+        - containerPort: 80
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: web
+spec:
+  selector:
+    app: web
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 80
+  type: LoadBalancer
+
+---
+# 4. Traffic Generator Pod (one-time)
+apiVersion: v1
+kind: Pod
+metadata:
+  name: traffic-gen
+spec:
+  restartPolicy: Never
+  containers:
+  - name: loadgen
+    image: busybox
+    command: ["/bin/sh", "-c"]
+    args:
+      - |
+        for i in $(seq 1 20); do
+          wget -qO- http://web;
+          echo "Sent request $i";
+          sleep 2;
+        done
