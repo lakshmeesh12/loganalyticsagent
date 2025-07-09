@@ -1,3 +1,4 @@
+#agent.py
 import os
 import time
 import logging
@@ -6,11 +7,12 @@ from dotenv import load_dotenv
 
 # Load .env file
 load_dotenv()
-OPENAI_API_KEY = os.getenv("OPEN_API_KEY")
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 if not OPENAI_API_KEY:
-    raise ValueError("OPEN_API_KEY not set in environment")
+    raise ValueError("OPENAI_API_KEY not set in environment")
 
-client = OpenAI(api_key=OPENAI_API_KEY)
+client = OpenAI(api_key=os.getenv("OPENAI_API_KEY")) 
+client.chat.completions.create(...)
 
 # Setup logging
 logging.basicConfig(
