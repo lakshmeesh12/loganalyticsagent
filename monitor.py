@@ -1,80 +1,103 @@
 # monitor.py
-
 import boto3
 import time
-from datetime import datetime, timedelta, timezone
 import logging
+from autogen import AssistantAgent
+import os
+from dotenv import load_dotenv
 
-seen_event_ids = set()
+load_dotenv()
 
+class MonitorAgent(AssistantAgent):
+    def __init__(self, name, llm_config, analyzer_agent=None):
+        super().__init__(name=name, llm_config=llm_config)
+        self.logger = logging.getLogger("MONITOR")
+        logging.basicConfig(
+            level=logging.INFO,
+            format='%(asctime)s [%(name)s] [%(levelname)s] %(message)s',
+            datefmt='%Y-%m-%d %H:%M:%S'
+        )
+        self.REGION = 'us-east-1'
+        self.LOG_GROUP_PREFIX = "/snowflake/"
+        self.cloudwatch = boto3.client("logs", region_name=self.REGION)
+        self.seen_event_ids = set()
+        self.analyzer_agent = analyzer_agent  # Pass analyzer reference
 
-# Setup logging
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s [%(name)s] [%(levelname)s] %(message)s',
-    datefmt='%Y-%m-%d %H:%M:%S'
-)
+    def get_recent_log_groups(self):
+        self.logger.info("Fetching recent CloudWatch log groups...")
+        paginator = self.cloudwatch.get_paginator('describe_log_groups')
+        log_groups = []
+        for page in paginator.paginate(logGroupNamePrefix=self.LOG_GROUP_PREFIX):
+            for group in page['logGroups']:
+                log_groups.append(group['logGroupName'])
+        self.logger.info(f"Found {len(log_groups)} log groups")
+        return log_groups
 
-logger = logging.getLogger("MONITOR")
+    def search_errors(self, log_group):
+        now = int(time.time() * 1000)
+        start_time = now - 2 * 60 * 1000  # last 2 minutes
+        self.logger.debug(f"Searching for errors in log group: {log_group}")
 
+        response = self.cloudwatch.filter_log_events(
+            logGroupName=log_group,
+            startTime=start_time,
+            endTime=now,
+        )
 
-# Setup
-REGION = 'us-east-1'
-LOG_GROUP_PREFIX = "/snowflake/"
+        for event in response.get("events", []):
+            event_id = event.get("eventId")
+            if event_id in self.seen_event_ids:
+                continue
+            self.seen_event_ids.add(event_id)
+            msg = event["message"]
 
-cloudwatch = boto3.client("logs", region_name=REGION)
+            if "EXECUTION_STATUS: SUCCESS" not in msg and (
+                "ERROR_CODE: None" not in msg or "ERROR_MESSAGE: None" not in msg
+            ):
+                self.logger.error(f"Error detected in {log_group}")
+                error_message = f"Error in {log_group}:\n{msg}\n"
 
-def get_recent_log_groups():
-    logger.info("Fetching recent CloudWatch log groups...")
-    paginator = cloudwatch.get_paginator('describe_log_groups')
-    log_groups = []
-    for page in paginator.paginate(logGroupNamePrefix=LOG_GROUP_PREFIX):
-        for group in page['logGroups']:
-            log_groups.append(group['logGroupName'])
-    logger.info(f"Found {len(log_groups)} log groups")
-    return log_groups
+                try:
+                    with open("snowflake_errors.log", "a", encoding="utf-8") as f:
+                        f.write(error_message + '-' * 60 + "\n")
+                    self.logger.info("Logged error details to snowflake_errors.log")
+                except Exception as e:
+                    self.logger.error(f"Failed to write error to file: {e}")
 
-def search_errors(log_group):
-    now = int(time.time() * 1000)
-    start_time = now - 2 * 60 * 1000  # last 2 minutes
+                # 🔥 Trigger AnalyzerAgent directly
+                if self.analyzer_agent:
+                    self.analyzer_agent.logger.info("AnalyzerAgent triggered from MonitorAgent")
+                    analysis = self.analyzer_agent.analyze_error(error_message)
+                    root_cause = analysis.get("root_cause", "Unknown")
+                    remediation_steps = analysis.get("remediation_steps", [])
+                    if self.analyzer_agent.fixer_agent:
+                        self.analyzer_agent.fixer_agent.receive_error(
+                            error_message, root_cause, remediation_steps
+                        )
 
-    logger.debug(f"Searching for errors in log group: {log_group}")
-    response = cloudwatch.filter_log_events(
-        logGroupName=log_group,
-        startTime=start_time,
-        endTime=now,
-    )
-
-    for event in response.get("events", []):
-        event_id = event.get("eventId")
-        if event_id in seen_event_ids:
-            continue  # skip if we've already processed this one
-        seen_event_ids.add(event_id)
-
-        msg = event["message"]
-        if "EXECUTION_STATUS: SUCCESS" not in msg and (
-            "ERROR_CODE: None" not in msg or "ERROR_MESSAGE: None" not in msg
-        ):
-            logger.error(f"Error detected in {log_group}")
-            try:
-                with open("snowflake_errors.log", "a", encoding="utf-8") as f:
-                    f.write(f"Error in {log_group}:\n{msg}\n{'-' * 60}\n")
-                logger.info(f"Logged error details to snowflake_errors.log")
-            except Exception as e:
-                logger.error(f"Failed to write error to file: {e}")
-
-
-
-def monitor_loop():
-    logger.info("Starting CloudWatch logs monitoring...")
-    try:
-        while True:
-            groups = get_recent_log_groups()
-            for group in groups:
-                search_errors(group)
-            time.sleep(15)
-    except KeyboardInterrupt:
-        logger.info("Monitoring stopped by user")
+    def run(self):
+        self.logger.info("Starting CloudWatch logs monitoring...")
+        try:
+            while True:
+                groups = self.get_recent_log_groups()
+                for group in groups:
+                    self.search_errors(group)
+                time.sleep(15)
+        except KeyboardInterrupt:
+            self.logger.info("Monitoring stopped by user")
 
 if __name__ == "__main__":
-    monitor_loop()
+    from agent import AnalyzerAgent
+    from fixer import FixerAgent
+
+    config_list = [{"model": "gpt-4o", "api_key": os.getenv("OPEN_API_KEY")}]
+    analyzer = AnalyzerAgent(name="AnalyzerAgent", llm_config={"config_list": config_list})
+    fixer = FixerAgent(name="FixerAgent", llm_config={"config_list": config_list}, analyzer_agent=analyzer)
+    analyzer.fixer_agent = fixer
+
+    agent = MonitorAgent(
+        name="MonitorAgent",
+        llm_config={"config_list": config_list},
+        analyzer_agent=analyzer
+    )
+    agent.run()

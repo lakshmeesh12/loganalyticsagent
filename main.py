@@ -1,77 +1,65 @@
-# main.py
-
-import asyncio
-from fastapi import FastAPI, BackgroundTasks
-from orchestrator.supervisor import SupervisorOrchestrator
+from fastapi import FastAPI
 import threading
 import os
 from dotenv import load_dotenv
+import sys
+from autogen import AssistantAgent, UserProxyAgent, GroupChat, GroupChatManager
+from log_forwarder import LogForwarderAgent
+from monitor import MonitorAgent
+from agent import AnalyzerAgent
+from fixer import FixerAgent
 
-# Load environment variables
 load_dotenv()
+app = FastAPI()
 
-app = FastAPI(title="Multi-Agent Log Analysis System")
-supervisor = SupervisorOrchestrator()
-system_thread = None
+# Setup LLM config
+config_list = [{"model": "gpt-4o", "api_key": os.getenv("OPEN_API_KEY")}]
 
-@app.on_event("startup")  # Changed from @app.on_startup
-async def startup_event():
-    """Initialize the system on startup"""
-    config = {
-        "openai_api_key": os.getenv("OPENAI_API_KEY")
-    }
+# Agents
+supervisor = AssistantAgent(
+    name="Supervisor",
+    llm_config={"config_list": config_list},
+    system_message="You are the supervisor agent. Orchestrate the log forwarder, monitor, analyzer, and fixer agents."
+)
 
-    
-    if not supervisor.initialize(config):
-        print("Failed to initialize supervisor")
+user_proxy = UserProxyAgent(
+    name="UserProxy",
+    human_input_mode="NEVER",
+    max_consecutive_auto_reply=0,
+    code_execution_config={"work_dir": ".", "use_docker": False}
+)
 
-def run_system():
-    """Run the system in a separate thread"""
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
-    loop.run_until_complete(supervisor.start_system())
+log_forwarder = LogForwarderAgent(name="LogForwarderAgent", llm_config={"config_list": config_list})
+analyzer = AnalyzerAgent(name="AnalyzerAgent", llm_config={"config_list": config_list})
+fixer = FixerAgent(name="FixerAgent", llm_config={"config_list": config_list}, analyzer_agent=analyzer)
+analyzer.fixer_agent = fixer
+monitor = MonitorAgent(name="MonitorAgent", llm_config={"config_list": config_list}, analyzer_agent=analyzer)
 
-@app.post("/start-system")
-async def start_system():
-    """Start the multi-agent system"""
-    global system_thread
-    
-    if system_thread and system_thread.is_alive():
-        return {"status": "System is already running"}
-    
-    system_thread = threading.Thread(target=run_system, daemon=True)
-    system_thread.start()
-    
-    return {"status": "Multi-Agent Log Analysis System started successfully"}
+# GroupChat for coordination
+group_chat = GroupChat(
+    agents=[supervisor, log_forwarder, monitor, analyzer, fixer],
+    messages=[],
+    max_round=10
+)
 
-@app.post("/stop-system")
-async def stop_system():
-    """Stop the multi-agent system"""
-    supervisor.stop_system()
-    return {"status": "Multi-Agent Log Analysis System stopped"}
+manager = GroupChatManager(groupchat=group_chat, llm_config={"config_list": config_list})
 
-@app.get("/system-status")
-async def get_system_status():
-    """Get current system status"""
-    return supervisor.get_system_status()
+@app.on_event("startup")
+def startup_event():
+    print("🚀 FastAPI started. Visit /start-logging to trigger agents.")
 
-@app.post("/add-agent")
-async def add_agent(agent_name: str, agent_config: dict = None):
-    """Add a new agent to the system (for extensibility)"""
-    # This would need to be implemented based on the specific agent type
-    return {"status": f"Agent addition endpoint ready for {agent_name}"}
+@app.get("/start-logging")
+async def start_logging():
+    threading.Thread(target=log_forwarder.run, daemon=True).start()
+    threading.Thread(target=monitor.run, daemon=True).start()
+    threading.Thread(target=analyzer.run, daemon=True).start()
+    threading.Thread(target=fixer.run, daemon=True).start()
 
-@app.get("/agents/{agent_name}/status")
-async def get_agent_status(agent_name: str):
-    """Get status of a specific agent"""
-    if agent_name in supervisor.agents:
-        return supervisor.agents[agent_name].get_status()
-    return {"error": f"Agent {agent_name} not found"}
-
-@app.get("/health")
-async def health_check():
-    """Health check endpoint"""
-    return {"status": "healthy", "system_running": supervisor.running}
+    user_proxy.initiate_chat(
+        manager,
+        message="Start the log analysis and remediation workflow: fetch logs from Snowflake, monitor for errors, analyze errors, and apply fixes."
+    )
+    return {"status": "Agents running and chat coordination initiated."}
 
 if __name__ == "__main__":
     import uvicorn
