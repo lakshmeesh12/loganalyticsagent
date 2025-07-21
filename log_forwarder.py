@@ -106,10 +106,7 @@ class LogForwarderAgent(AssistantAgent):
                     for col, val in zip(columns, row):
                         message += f"{col}: {val}\n"
                     
-                    # Print to terminal
-                    print("\n====== LOG FOUND ======")
-                    print(message)
-                    print("========================\n")
+                    
                     
                     self.send_log_event(log_group, log_stream, message)
                 self.last_timestamps[view_name] = rows[-1][columns.index(timestamp_col)]

@@ -5,6 +5,7 @@ import logging
 from autogen import AssistantAgent
 import os
 from dotenv import load_dotenv
+from agent import ErrorAnalyzerAgent
 
 load_dotenv()
 
@@ -21,7 +22,7 @@ class MonitorAgent(AssistantAgent):
         self.LOG_GROUP_PREFIX = "/snowflake/"
         self.cloudwatch = boto3.client("logs", region_name=self.REGION)
         self.seen_event_ids = set()
-        self.analyzer_agent = analyzer_agent  # Pass analyzer reference
+        self.analyzer_agent = analyzer_agent
 
     def get_recent_log_groups(self):
         self.logger.info("Fetching recent CloudWatch log groups...")
@@ -64,7 +65,6 @@ class MonitorAgent(AssistantAgent):
                 except Exception as e:
                     self.logger.error(f"Failed to write error to file: {e}")
 
-                # 🔥 Trigger AnalyzerAgent directly
                 if self.analyzer_agent:
                     self.analyzer_agent.logger.info("AnalyzerAgent triggered from MonitorAgent")
                     analysis = self.analyzer_agent.analyze_error(error_message)
@@ -87,11 +87,11 @@ class MonitorAgent(AssistantAgent):
             self.logger.info("Monitoring stopped by user")
 
 if __name__ == "__main__":
-    from agent import AnalyzerAgent
+    from agent import ErrorAnalyzerAgent
     from fixer import FixerAgent
 
     config_list = [{"model": "gpt-4o", "api_key": os.getenv("OPEN_API_KEY")}]
-    analyzer = AnalyzerAgent(name="AnalyzerAgent", llm_config={"config_list": config_list})
+    analyzer = ErrorAnalyzerAgent(name="AnalyzerAgent", llm_config={"config_list": config_list})
     fixer = FixerAgent(name="FixerAgent", llm_config={"config_list": config_list}, analyzer_agent=analyzer)
     analyzer.fixer_agent = fixer
 

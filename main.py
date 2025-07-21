@@ -1,66 +1,61 @@
+# main.py
 from fastapi import FastAPI
 import threading
+import sys
 import os
 from dotenv import load_dotenv
-import sys
+
 from autogen import AssistantAgent, UserProxyAgent, GroupChat, GroupChatManager
+from agent import ErrorAnalyzerAgent
+from fixer import FixerAgent
 from log_forwarder import LogForwarderAgent
 from monitor import MonitorAgent
-from agent import AnalyzerAgent
-from fixer import FixerAgent
 
 load_dotenv()
+
 app = FastAPI()
 
-# Setup LLM config
-config_list = [{"model": "gpt-4o", "api_key": os.getenv("OPEN_API_KEY")}]
+# Define LLM Config using config_list
+llm_config = {
+    "config_list": [
+        {
+            "model": "gpt-4o",
+            "api_key": os.getenv("OPEN_API_KEY"),
+            "base_url": "https://api.openai.com/v1"
+        }
+    ]
+}
 
-# Agents
-supervisor = AssistantAgent(
-    name="Supervisor",
-    llm_config={"config_list": config_list},
-    system_message="You are the supervisor agent. Orchestrate the log forwarder, monitor, analyzer, and fixer agents."
-)
+# Initialize all agents
+error_analyzer = ErrorAnalyzerAgent(name="ErrorAnalyzerAgent", llm_config=llm_config)
+fixer_agent = FixerAgent(name="FixerAgent", llm_config=llm_config, analyzer_agent=error_analyzer)
+monitor_agent = MonitorAgent(name="MonitorAgent", llm_config=llm_config, analyzer_agent=error_analyzer)
+forwarder_agent = LogForwarderAgent(name="LogForwarderAgent", llm_config=llm_config)
 
+# Link analyzer to fixer
+error_analyzer.fixer_agent = fixer_agent
+
+# User proxy for interaction
 user_proxy = UserProxyAgent(
-    name="UserProxy",
-    human_input_mode="NEVER",
-    max_consecutive_auto_reply=0,
-    code_execution_config={"work_dir": ".", "use_docker": False}
+    name="Supervisor",
+    code_execution_config={"use_docker": False},
+    human_input_mode="NEVER"
 )
 
-log_forwarder = LogForwarderAgent(name="LogForwarderAgent", llm_config={"config_list": config_list})
-analyzer = AnalyzerAgent(name="AnalyzerAgent", llm_config={"config_list": config_list})
-fixer = FixerAgent(name="FixerAgent", llm_config={"config_list": config_list}, analyzer_agent=analyzer)
-analyzer.fixer_agent = fixer
-monitor = MonitorAgent(name="MonitorAgent", llm_config={"config_list": config_list}, analyzer_agent=analyzer)
+# Group chat setup
+group_chat = GroupChat(agents=[user_proxy, error_analyzer, fixer_agent], messages=[], max_round=5)
+chat_manager = GroupChatManager(groupchat=group_chat, llm_config=llm_config)
 
-# GroupChat for coordination
-group_chat = GroupChat(
-    agents=[supervisor, log_forwarder, monitor, analyzer, fixer],
-    messages=[],
-    max_round=10
-)
-
-manager = GroupChatManager(groupchat=group_chat, llm_config={"config_list": config_list})
+@app.get("/start-logging")
+def start_logging():
+    user_proxy.initiate_chat(
+        chat_manager,
+        message="Start analyzing Snowflake logs and fixing issues."
+    )
+    return {"status": "Chat initiated"}
 
 @app.on_event("startup")
 def startup_event():
-    print("🚀 FastAPI started. Visit /start-logging to trigger agents.")
-
-@app.get("/start-logging")
-async def start_logging():
-    threading.Thread(target=log_forwarder.run, daemon=True).start()
-    threading.Thread(target=monitor.run, daemon=True).start()
-    threading.Thread(target=analyzer.run, daemon=True).start()
-    threading.Thread(target=fixer.run, daemon=True).start()
-
-    user_proxy.initiate_chat(
-        manager,
-        message="Start the log analysis and remediation workflow: fetch logs from Snowflake, monitor for errors, analyze errors, and apply fixes."
-    )
-    return {"status": "Agents running and chat coordination initiated."}
-
-if __name__ == "__main__":
-    import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    # Start forwarder and monitor in background threads
+    threading.Thread(target=forwarder_agent.run, daemon=True).start()
+    threading.Thread(target=monitor_agent.run, daemon=True).start()
