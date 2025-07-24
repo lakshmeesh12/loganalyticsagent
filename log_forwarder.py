@@ -5,8 +5,9 @@ import logging
 from autogen import AssistantAgent
 import os
 from dotenv import load_dotenv
- 
+
 load_dotenv()
+
 class LogForwarderAgent(AssistantAgent):
     def __init__(self, name, llm_config):
         super().__init__(name=name, llm_config=llm_config)
@@ -36,22 +37,28 @@ class LogForwarderAgent(AssistantAgent):
             for view in self.LOG_CONFIG
         }
         self.sequence_token = {}
-        self.conn = self.connect_to_snowflake()
- 
+        self.conn = None
+        try:
+            self.conn = self.connect_to_snowflake()
+        except Exception as e:
+            self.logger.error(f"Failed to initialize Snowflake connection: {e}")
+            with open("snowflake_errors.log", "a", encoding="utf-8") as f:
+                f.write(f"[{datetime.now()}] Initialization error: {e}\n{'-' * 60}\n")
+
     def ensure_log_group_exists(self, log_group):
         self.logger.debug(f"Checking if log group {log_group} exists")
         groups = self.cloudwatch.describe_log_groups(logGroupNamePrefix=log_group)
         if not any(group['logGroupName'] == log_group for group in groups.get('logGroups', [])):
             self.cloudwatch.create_log_group(logGroupName=log_group)
             self.logger.info(f"Created log group: {log_group}")
- 
+
     def create_log_stream(self, log_group, stream_name):
         try:
             self.cloudwatch.create_log_stream(logGroupName=log_group, logStreamName=stream_name)
             self.logger.debug(f"Created log stream: {log_group}/{stream_name}")
         except self.cloudwatch.exceptions.ResourceAlreadyExistsException:
             self.logger.debug(f"Log stream already exists: {log_group}/{stream_name}")
- 
+
     def send_log_event(self, log_group, log_stream, message):
         timestamp_ms = int(datetime.now(timezone.utc).timestamp() * 1000)
         kwargs = {
@@ -77,8 +84,11 @@ class LogForwarderAgent(AssistantAgent):
             self.logger.info(f"Retried log to {log_group}/{log_stream} after token fix")
         except Exception as e:
             self.logger.error(f"Failed to send log to {log_group}/{log_stream}: {e}")
- 
+
     def fetch_and_forward_logs(self, view_name, timestamp_col):
+        if not self.conn:
+            self.logger.warning(f"Skipping {view_name} fetch: No Snowflake connection")
+            return
         log_group = f"/snowflake/{view_name}"
         log_stream = datetime.now(timezone.utc).strftime("%Y-%m-%d-%H")
         self.ensure_log_group_exists(log_group)
@@ -100,22 +110,19 @@ class LogForwarderAgent(AssistantAgent):
                 self.logger.info(f"No new logs for {view_name}")
             else:
                 self.logger.info(f"Found {len(rows)} new logs for {view_name}")
-                
                 for row in rows:
                     message = f"{view_name} LOG ENTRY\n"
                     for col, val in zip(columns, row):
                         message += f"{col}: {val}\n"
-                    
-                    
-                    
                     self.send_log_event(log_group, log_stream, message)
                 self.last_timestamps[view_name] = rows[-1][columns.index(timestamp_col)]
-                
         except Exception as e:
             self.logger.error(f"Error fetching {view_name}: {e}")
             with open("snowflake_errors.log", "a", encoding="utf-8") as f:
                 f.write(f"[{datetime.now()}] Error fetching {view_name}:\n{e}\n{'-' * 60}\n")
- 
+        finally:
+            cursor.close()
+
     def connect_to_snowflake(self):
         self.logger.info("Connecting to Snowflake...")
         conn = snowflake.connector.connect(
@@ -129,8 +136,11 @@ class LogForwarderAgent(AssistantAgent):
         )
         self.logger.info("Connected to Snowflake")
         return conn
- 
+
     def run(self):
+        if not self.conn:
+            self.logger.warning("Snowflake connection unavailable, skipping log forwarding")
+            return
         self.logger.info("Real-time log forwarding started...")
         try:
             while True:
@@ -141,11 +151,6 @@ class LogForwarderAgent(AssistantAgent):
         except KeyboardInterrupt:
             self.logger.info("Log forwarding stopped by user")
         finally:
-            self.conn.close()
-            self.logger.info("Snowflake connection closed")
- 
-if __name__ == "__main__":
-    config_list = [{"model": "gpt-4o", "api_key": os.getenv("OPEN_API_KEY")}]
-    agent = LogForwarderAgent(name="LogForwarderAgent", llm_config={"config_list": config_list})
-    agent.run()
- 
+            if self.conn:
+                self.conn.close()
+                self.logger.info("Snowflake connection closed")
